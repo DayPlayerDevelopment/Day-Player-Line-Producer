@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>DAYPLAYER Line Producer</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DP Line Producer">
+<meta name="theme-color" content="#0c0e10">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --bg:#0c0e10;
+  --panel:#15181c;
+  --panel2:#1b1f24;
+  --line:#2a2f35;
+  --amber:#e0a458;
+  --amber-dim:#9a7240;
+  --teal:#3f9d96;
+  --teal-dim:#2c6e69;
+  --text:#e8e4da;
+  --text-dim:#9a9690;
+  --danger:#c0594f;
+  --radius:10px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace;
+  -webkit-font-smoothing:antialiased;height:100%;overscroll-behavior-y:none;}
+body{padding-bottom:env(safe-area-inset-bottom);}
+h1,h2,h3{font-family:'Oswald',sans-serif;margin:0;letter-spacing:.02em;}
+button{font-family:'IBM Plex Mono',monospace;}
+input,select,textarea{font-family:'IBM Plex Mono',monospace;background:var(--panel2);color:var(--text);
+  border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:15px;}
+input::placeholder{color:var(--text-dim);}
+
+/* ---- Header / slate ---- */
+.topbar{
+  position:sticky;top:0;z-index:50;
+  background:linear-gradient(180deg,#0c0e10 80%,rgba(12,14,16,0));
+  padding:14px 16px 6px;padding-top:max(14px, env(safe-area-inset-top));
+}
+.slate{
+  display:flex;align-items:center;gap:10px;
+}
+.slate-stripe{
+  width:30px;height:30px;border-radius:4px;flex:0 0 auto;
+  background:repeating-linear-gradient(135deg,var(--amber) 0 8px, #1a1a1a 8px 16px);
+  border:1px solid var(--line);
+}
+.slate h1{font-size:19px;color:var(--text);}
+.slate h1 b{color:var(--amber);}
+.subtitle{font-size:11px;color:var(--text-dim);margin-top:2px;letter-spacing:.08em;text-transform:uppercase;}
+
+/* ---- Tabs (clapperboard) ---- */
+nav.tabs{
+  display:flex;gap:6px;padding:10px 12px 14px;overflow-x:auto;scrollbar-width:none;
+}
+nav.tabs::-webkit-scrollbar{display:none;}
+.tab-btn{
+  position:relative;flex:1 0 auto;min-width:78px;
+  background:var(--panel);border:1px solid var(--line);border-radius:8px;
+  color:var(--text-dim);padding:10px 8px 8px;cursor:pointer;
+  font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.04em;text-transform:uppercase;
+  transition:transform .12s ease, color .12s ease, border-color .12s ease;
+  border-top:3px solid var(--line);
+}
+.tab-btn .num{display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber-dim);margin-bottom:3px;}
+.tab-btn.active{
+  color:var(--text);border-color:var(--teal);border-top-color:var(--amber);
+  transform:translateY(1px);
+  background:var(--panel2);
+}
+.tab-btn.active .num{color:var(--amber);}
+.tab-btn:active{transform:translateY(2px) scale(.98);}
+
+main{padding:0 14px 90px;max-width:900px;margin:0 auto;}
+.panel{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px;margin-bottom:14px;
+}
+.panel h2{font-size:15px;color:var(--amber);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.panel h2 .tag{font-size:10px;color:var(--teal);border:1px solid var(--teal-dim);border-radius:4px;padding:2px 6px;font-family:'IBM Plex Mono',monospace;letter-spacing:.04em;}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.row > *{flex:1 1 120px;}
+.btn{
+  background:var(--teal-dim);color:#eef;border:1px solid var(--teal);border-radius:7px;
+  padding:9px 14px;font-size:13px;cursor:pointer;font-weight:500;
+}
+.btn:active{transform:translateY(1px);}
+.btn.amber{background:var(--amber-dim);border-color:var(--amber);color:#1a1208;}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text-dim);}
+.btn.danger{background:transparent;border:1px solid var(--danger);color:var(--danger);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;color:var(--amber);font-family:'Oswald',sans-serif;font-size:11px;text-transform:uppercase;
+  letter-spacing:.04em;padding:6px 6px;border-bottom:1px solid var(--line);}
+td{padding:6px 6px;border-bottom:1px solid #1f2329;vertical-align:middle;}
+td input{width:100%;padding:6px 6px;font-size:13px;}
+tr:hover td{background:#181b1f;}
+.del-btn{background:none;border:none;color:var(--danger);font-size:16px;cursor:pointer;padding:2px 6px;}
+
+.empty{color:var(--text-dim);font-size:13px;text-align:center;padding:20px 10px;border:1px dashed var(--line);border-radius:8px;}
+.empty b{color:var(--amber-dim);}
+
+.file-list{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+.file-item{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:8px;padding:8px 10px;font-size:13px;}
+.file-item .ic{width:30px;height:30px;border-radius:6px;background:var(--teal-dim);display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:14px;}
+.file-item .meta{flex:1;min-width:0;}
+.file-item .meta .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.file-item .meta .sub{color:var(--text-dim);font-size:11px;}
+.file-item a{color:var(--teal);text-decoration:none;font-size:12px;}
+
+.day-group{margin-bottom:14px;}
+.day-group .day-label{font-family:'Oswald',sans-serif;color:var(--teal);font-size:12px;letter-spacing:.06em;
+  text-transform:uppercase;margin:14px 0 6px;display:flex;align-items:center;gap:8px;}
+.day-group .day-label::after{content:'';flex:1;height:1px;background:var(--line);}
+
+.scene-status{display:inline-block;font-size:10px;padding:3px 7px;border-radius:5px;font-family:'Oswald',sans-serif;
+  text-transform:uppercase;letter-spacing:.03em;}
+.scene-status.pending{background:#2a2f35;color:var(--text-dim);}
+.scene-status.shot{background:var(--teal-dim);color:#dff;}
+
+.pdf-viewer{margin-top:10px;background:#000;border-radius:8px;overflow:hidden;border:1px solid var(--line);}
+.pdf-viewer canvas{width:100%;display:block;}
+.pdf-controls{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;}
+.pdf-controls span{font-size:12px;color:var(--text-dim);}
+
+footer.savebar{
+  position:fixed;bottom:0;left:0;right:0;background:rgba(12,14,16,.92);backdrop-filter:blur(6px);
+  border-top:1px solid var(--line);padding:8px 14px;padding-bottom:max(8px, env(safe-area-inset-bottom));
+  display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:var(--text-dim);
+}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--teal);display:inline-block;margin-right:6px;
+  box-shadow:0 0 6px var(--teal);}
+
+.hidden{display:none !important;}
+
+@media (max-width:480px){
+  .row > *{flex:1 1 100%;}
+  table{font-size:12px;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="slate">
+    <div class="slate-stripe"></div>
+    <div>
+      <h1>DAY<b>PLAYER</b> Line Producer</h1>
+      <div class="subtitle" id="dateLabel">—</div>
+    </div>
+  </div>
+</div>
+
+<nav class="tabs" id="tabs">
+  <button class="tab-btn active" data-tab="signin"><span class="num">01</span>Sign In/Out</button>
+  <button class="tab-btn" data-tab="crew"><span class="num">02</span>Crew Roster</button>
+  <button class="tab-btn" data-tab="schedule"><span class="num">03</span>Schedule</button>
+  <button class="tab-btn" data-tab="reports"><span class="num">04</span>Reports</button>
+  <button class="tab-btn" data-tab="purchases"><span class="num">05</span>Purchases</button>
+</nav>
+
+<div style="max-width:900px;margin:0 auto 4px;padding:0 14px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+  <button class="btn ghost" id="exportBackupBtn" style="font-size:12px;padding:7px 12px;">⤓ Export Save File</button>
+  <button class="btn ghost" id="importBackupBtn" style="font-size:12px;padding:7px 12px;">⤒ Import Save File</button>
+  <input type="file" id="importBackupInput" accept="application/json,.json" class="hidden">
+</div>
+
+<main>
+
+<!-- ===================== TAB 1: SIGN IN/OUT ===================== -->
+<section id="tab-signin" class="tabpanel">
+  <div class="panel">
+    <h2>Crew Sign In / Out <span class="tag" id="signinDate"></span></h2>
+    <table id="signinTable">
+      <thead><tr>
+        <th style="width:24%">Name</th><th>In</th><th>Meal 1</th><th>Meal 2</th><th>Wrap</th><th></th>
+      </tr></thead>
+      <tbody id="signinBody"></tbody>
+    </table>
+    <div class="btn-row">
+      <button class="btn" id="addCrewBtn">+ Add Crew Member</button>
+      <button class="btn amber" id="exportSigninBtn">Export Day as Chart (PNG)</button>
+      <button class="btn ghost" id="newSigninDayBtn">Start New Day</button>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Past Days</h2>
+    <div id="signinHistory" class="file-list"><div class="empty">No previous sign-in sheets yet.</div></div>
+  </div>
+</section>
+
+<!-- ===================== TAB 2: CREW ROSTER ===================== -->
+<section id="tab-crew" class="tabpanel hidden">
+  <div class="panel">
+    <h2 id="crewFormTitle">Add Crew Member</h2>
+    <div class="row">
+      <input type="text" id="crewName" placeholder="Full name">
+      <input type="text" id="crewPosition" placeholder="Position (e.g. Gaffer, 1st AD)">
+    </div>
+    <div class="row">
+      <input type="tel" id="crewPhone" placeholder="Phone number">
+      <input type="email" id="crewEmail" placeholder="Email address">
+    </div>
+    <div class="row">
+      <div style="flex:1 1 100%;">
+        <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Deal Memo</label>
+        <input type="file" id="crewDealMemo" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+        <div id="crewDealMemoExisting" style="font-size:11px;color:var(--text-dim);margin-top:4px;"></div>
+      </div>
+      <div style="flex:1 1 100%;">
+        <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Tax Paperwork (W-9 / W-4, etc.)</label>
+        <input type="file" id="crewTaxDoc" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+        <div id="crewTaxDocExisting" style="font-size:11px;color:var(--text-dim);margin-top:4px;"></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="addCrewMemberBtn">+ Add to Roster</button>
+      <button class="btn ghost hidden" id="cancelCrewEditBtn">Cancel Edit</button>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Roster <span class="tag" id="crewCount"></span></h2>
+    <div class="row" style="margin-bottom:6px;">
+      <select id="crewSort">
+        <option value="name">Sort: Name (A–Z)</option>
+        <option value="position">Sort: Position (A–Z)</option>
+        <option value="newest">Sort: Date Added (Newest)</option>
+        <option value="oldest">Sort: Date Added (Oldest)</option>
+      </select>
+    </div>
+    <div class="file-list" id="crewList"><div class="empty">No crew members added yet.</div></div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="btn amber" id="exportCrewBtn">Export Roster (.csv)</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TAB 3: SCHEDULE ===================== -->
+<section id="tab-schedule" class="tabpanel hidden">
+  <div class="panel">
+    <h2>Sides / Scenes PDF</h2>
+    <div class="row">
+      <input type="file" id="pdfUpload" accept="application/pdf">
+    </div>
+    <div id="pdfViewerWrap" class="hidden">
+      <div class="pdf-viewer"><canvas id="pdfCanvas"></canvas></div>
+      <div class="pdf-controls">
+        <button class="btn ghost" id="pdfPrev">‹ Prev</button>
+        <span id="pdfPageLabel">Page 1</span>
+        <button class="btn ghost" id="pdfNext">Next ›</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Scene Tracker <span class="tag" id="scheduleDate"></span></h2>
+    <div class="row">
+      <input type="text" id="sceneNum" placeholder="Scene #">
+      <input type="text" id="sceneDesc" placeholder="Description / Location">
+      <input type="text" id="scenePages" placeholder="Pages (e.g. 2 1/8)">
+    </div>
+    <div class="btn-row" style="margin-bottom:12px;">
+      <button class="btn" id="addSceneBtn">+ Add Scene</button>
+    </div>
+    <table id="sceneTable">
+      <thead><tr><th>Scene</th><th>Description</th><th>Pages</th><th>Status</th><th>Time Shot</th><th></th></tr></thead>
+      <tbody id="sceneBody"></tbody>
+    </table>
+    <div class="btn-row">
+      <button class="btn amber" id="exportScheduleBtn">Export Schedule as Chart (PNG)</button>
+      <button class="btn ghost" id="newScheduleDayBtn">Start New Day</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TAB 3: REPORTS ===================== -->
+<section id="tab-reports" class="tabpanel hidden">
+  <div class="panel">
+    <h2>2nd AC Reports</h2>
+    <input type="file" id="acFileInput" multiple accept=".pdf,.doc,.docx,.txt,.csv,.jpg,.jpeg,.png">
+    <div class="file-list" id="acFileList"><div class="empty">No 2nd AC reports uploaded yet.</div></div>
+  </div>
+  <div class="panel">
+    <h2>Script Supervisor Notes (for Editor)</h2>
+    <input type="file" id="ssFileInput" multiple accept=".pdf,.doc,.docx,.txt,.csv,.jpg,.jpeg,.png">
+    <div class="file-list" id="ssFileList"><div class="empty">No script supervisor notes uploaded yet.</div></div>
+  </div>
+</section>
+
+<!-- ===================== TAB 4: PURCHASES ===================== -->
+<section id="tab-purchases" class="tabpanel hidden">
+  <div class="panel">
+    <h2>Daily Purchases / Receipts <span class="tag" id="purchaseDate"></span></h2>
+    <div class="row">
+      <input type="text" id="purchVendor" placeholder="Vendor">
+      <input type="text" id="purchAmount" placeholder="Amount ($)" inputmode="decimal">
+      <input type="text" id="purchNote" placeholder="Note (optional)">
+    </div>
+    <input type="file" id="receiptFileInput" accept=".pdf,.jpg,.jpeg,.png">
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="btn" id="addReceiptBtn">+ Add Receipt</button>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>All Purchases by Date</h2>
+    <div id="purchaseGroups"></div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="btn amber" id="exportReceiptsZipBtn">Export All Receipts (.zip, by date)</button>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="savebar">
+  <span><span class="dot"></span>Saved on this device</span>
+  <span id="footerInfo">DAYPLAYER LP</span>
+</footer>
+
+<script>
+/* ============================================================
+   DAYPLAYER LINE PRODUCER
+   Single-file PWA. Data persisted via IndexedDB (files/blobs)
+   + localStorage (structured records).
+   ============================================================ */
+
+const todayStr = () => new Date().toISOString().slice(0,10);
+const fmtDateLong = (d) => new Date(d+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+document.getElementById('dateLabel').textContent = fmtDateLong(todayStr()) + ' · Production Day Tools';
+
+/* ---------- tiny IndexedDB blob store ---------- */
+const DB_NAME='dayplayer-lp-db', DB_STORE='files';
+let dbPromise = new Promise((resolve,reject)=>{
+  const req = indexedDB.open(DB_NAME,1);
+  req.onupgradeneeded = ()=>{ req.result.createObjectStore(DB_STORE); };
+  req.onsuccess = ()=>resolve(req.result);
+  req.onerror = ()=>reject(req.error);
+});
+async function dbPut(key, value){
+  const db = await dbPromise;
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(DB_STORE,'readwrite');
+    tx.objectStore(DB_STORE).put(value,key);
+    tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error);
+  });
+}
+async function dbGet(key){
+  const db = await dbPromise;
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(DB_STORE,'readonly');
+    const r = tx.objectStore(DB_STORE).get(key);
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  });
+}
+async function dbDelete(key){
+  const db = await dbPromise;
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(DB_STORE,'readwrite');
+    tx.objectStore(DB_STORE).delete(key);
+    tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error);
+  });
+}
+async function dbGetAllKeys(){
+  const db = await dbPromise;
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(DB_STORE,'readonly');
+    const req = tx.objectStore(DB_STORE).getAllKeys();
+    req.onsuccess=()=>res(req.result); req.onerror=()=>rej(req.error);
+  });
+}
+
+/* ---------- localStorage JSON helpers ---------- */
+const store = {
+  get(k, fallback){ try{ const v = localStorage.getItem(k); return v? JSON.parse(v): fallback; }catch(e){return fallback;} },
+  set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+};
+const uid = () => Math.random().toString(36).slice(2,9) + Date.now().toString(36);
+
+/* ---------- ArrayBuffer <-> base64 (chunked, avoids call-stack blowups) ---------- */
+function bufferToBase64(buf){
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const chunkSize = 0x8000;
+  for(let i=0; i<bytes.length; i+=chunkSize){
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunkSize));
+  }
+  return btoa(binary);
+}
+function base64ToBuffer(b64){
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0; i<binary.length; i++){ bytes[i] = binary.charCodeAt(i); }
+  return bytes.buffer;
+}
+
+/* ---------- Full save export / import ---------- */
+async function exportFullBackup(){
+  const backup = { app:'DAYPLAYER Line Producer', version:1, exportedAt: new Date().toISOString(),
+    localStorage:{}, files:{} };
+  for(const key in localStorage){
+    if(Object.prototype.hasOwnProperty.call(localStorage, key) && key.startsWith('dp_')){
+      backup.localStorage[key] = localStorage.getItem(key);
+    }
+  }
+  try{
+    const keys = await dbGetAllKeys();
+    for(const k of keys){
+      const buf = await dbGet(k);
+      if(buf) backup.files[k] = bufferToBase64(buf);
+    }
+  }catch(e){ console.error('Backup file read error', e); }
+
+  const json = JSON.stringify(backup);
+  const blob = new Blob([json], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download = `DAYPLAYER_Save_${todayStr()}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+
+async function importFullBackup(file){
+  if(!confirm('Importing a save file will REPLACE all current data in this app (crew, schedule, reports, purchases, sign-in sheets) with the contents of the save file. Continue?')) return;
+  let backup;
+  try{
+    const text = await file.text();
+    backup = JSON.parse(text);
+  }catch(e){
+    alert('That file could not be read as a DAYPLAYER save file.');
+    return;
+  }
+  if(!backup || !backup.localStorage){
+    alert('That file does not look like a valid DAYPLAYER save file.');
+    return;
+  }
+
+  // Clear existing dp_ localStorage keys and IndexedDB files first
+  Object.keys(localStorage).filter(k=>k.startsWith('dp_')).forEach(k=>localStorage.removeItem(k));
+  try{
+    const existingKeys = await dbGetAllKeys();
+    for(const k of existingKeys){ await dbDelete(k); }
+  }catch(e){ console.error('Error clearing old files', e); }
+
+  // Restore
+  for(const key in backup.localStorage){
+    localStorage.setItem(key, backup.localStorage[key]);
+  }
+  if(backup.files){
+    for(const key in backup.files){
+      await dbPut(key, base64ToBuffer(backup.files[key]));
+    }
+  }
+
+  alert('Save file imported. Reloading the app now.');
+  location.reload();
+}
+
+document.getElementById('exportBackupBtn').addEventListener('click', exportFullBackup);
+document.getElementById('importBackupBtn').addEventListener('click', ()=>{
+  document.getElementById('importBackupInput').click();
+});
+document.getElementById('importBackupInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(file) importFullBackup(file);
+  e.target.value='';
+});
+
+/* ============================================================
+   TABS
+   ============================================================ */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tabpanel').forEach(p=>p.classList.add('hidden'));
+    document.getElementById('tab-'+btn.dataset.tab).classList.remove('hidden');
+  });
+});
+
+/* ============================================================
+   TAB 1: SIGN IN / OUT
+   ============================================================ */
+let signinData = store.get('dp_signin_current', { date: todayStr(), rows: [] });
+if(signinData.date !== todayStr() && signinData.rows.length === 0){ signinData.date = todayStr(); }
+
+function renderSignin(){
+  document.getElementById('signinDate').textContent = fmtDateLong(signinData.date);
+  const body = document.getElementById('signinBody');
+  body.innerHTML='';
+  signinData.rows.forEach(row=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input data-f="name" value="${escapeAttr(row.name)}" placeholder="Full name" list="crewNameOptions"></td>
+      <td><input data-f="timeIn" type="time" value="${row.timeIn||''}"></td>
+      <td><input data-f="meal1" type="time" value="${row.meal1||''}"></td>
+      <td><input data-f="meal2" type="time" value="${row.meal2||''}"></td>
+      <td><input data-f="wrap" type="time" value="${row.wrap||''}"></td>
+      <td><button class="del-btn" title="Remove">✕</button></td>`;
+    tr.querySelectorAll('input').forEach(inp=>{
+      inp.addEventListener('input', ()=>{ row[inp.dataset.f]=inp.value; saveSignin(); });
+    });
+    tr.querySelector('.del-btn').addEventListener('click', ()=>{
+      signinData.rows = signinData.rows.filter(r=>r.id!==row.id);
+      saveSignin(); renderSignin();
+    });
+    body.appendChild(tr);
+  });
+  if(signinData.rows.length===0){
+    body.innerHTML = `<tr><td colspan="6"><div class="empty">No crew added yet. Tap <b>+ Add Crew Member</b> to start today's sheet.</div></td></tr>`;
+  }
+}
+function saveSignin(){ store.set('dp_signin_current', signinData); }
+document.getElementById('addCrewBtn').addEventListener('click', ()=>{
+  signinData.rows.push({id:uid(), name:'', timeIn:'', meal1:'', meal2:'', wrap:''});
+  saveSignin(); renderSignin();
+});
+document.getElementById('newSigninDayBtn').addEventListener('click', ()=>{
+  if(signinData.rows.length && !confirm("Archive today's sheet and start a new blank day?")) return;
+  archiveSignin();
+  signinData = { date: todayStr(), rows: [] };
+  saveSignin(); renderSignin(); renderSigninHistory();
+});
+function archiveSignin(){
+  if(!signinData.rows.length) return;
+  const history = store.get('dp_signin_history', []);
+  history.unshift({ date: signinData.date, rows: signinData.rows });
+  store.set('dp_signin_history', history.slice(0,200));
+}
+function renderSigninHistory(){
+  const wrap = document.getElementById('signinHistory');
+  const history = store.get('dp_signin_history', []);
+  if(!history.length){ wrap.innerHTML = '<div class="empty">No previous sign-in sheets yet.</div>'; return; }
+  wrap.innerHTML='';
+  history.slice(0,30).forEach((day,i)=>{
+    const div = document.createElement('div');
+    div.className='file-item';
+    div.innerHTML = `<div class="ic">📋</div><div class="meta"><div class="nm">${fmtDateLong(day.date)}</div>
+      <div class="sub">${day.rows.length} crew member(s)</div></div>`;
+    const a = document.createElement('a'); a.href='#'; a.textContent='Export PNG';
+    a.addEventListener('click', (e)=>{ e.preventDefault(); exportSigninChart(day); });
+    div.appendChild(a);
+    wrap.appendChild(div);
+  });
+}
+document.getElementById('exportSigninBtn').addEventListener('click', ()=> exportSigninChart(signinData));
+
+function exportSigninChart(day){
+  const rows = day.rows.filter(r=>r.name.trim());
+  const headers = ['NAME','IN','MEAL 1','MEAL 2','WRAP'];
+  const colW = [260,130,130,130,130];
+  const rowH = 36, headH=46, padX=24, padTop=78, padBottom=24;
+  const width = colW.reduce((a,b)=>a+b,0) + padX*2;
+  const height = padTop + headH + rows.length*rowH + padBottom + (rows.length===0?rowH:0);
+  const canvas = document.createElement('canvas');
+  canvas.width = width*2; canvas.height = height*2;
+  const ctx = canvas.getContext('2d'); ctx.scale(2,2);
+  ctx.fillStyle = '#0c0e10'; ctx.fillRect(0,0,width,height);
+  ctx.fillStyle = '#e0a458'; ctx.font='600 20px Oswald, sans-serif';
+  ctx.fillText('DAYPLAYER · CREW SIGN IN / OUT', padX, 36);
+  ctx.fillStyle = '#9a9690'; ctx.font='13px IBM Plex Mono, monospace';
+  ctx.fillText(fmtDateLong(day.date).toUpperCase(), padX, 58);
+  let x = padX, y = padTop;
+  ctx.font='600 12px Oswald, sans-serif';
+  headers.forEach((h,i)=>{
+    ctx.fillStyle='#3f9d96'; ctx.fillText(h, x+8, y+headH-16);
+    x += colW[i];
+  });
+  ctx.strokeStyle='#2a2f35'; ctx.beginPath(); ctx.moveTo(padX,y+headH-8); ctx.lineTo(width-padX,y+headH-8); ctx.stroke();
+  y += headH;
+  ctx.font='14px IBM Plex Mono, monospace';
+  if(rows.length===0){
+    ctx.fillStyle='#9a9690'; ctx.fillText('No crew recorded.', padX+8, y+rowH-12);
+  }
+  rows.forEach((r,ri)=>{
+    if(ri%2===1){ ctx.fillStyle='#15181c'; ctx.fillRect(padX-8,y, width-padX*2+16, rowH); }
+    x = padX;
+    const vals = [r.name||'—', r.timeIn||'—', r.meal1||'—', r.meal2||'—', r.wrap||'—'];
+    vals.forEach((v,i)=>{
+      ctx.fillStyle = i===0? '#e8e4da' : '#cfcbc2';
+      ctx.fillText(v, x+8, y+rowH-12);
+      x += colW[i];
+    });
+    ctx.strokeStyle='#1f2329'; ctx.beginPath(); ctx.moveTo(padX,y+rowH); ctx.lineTo(width-padX,y+rowH); ctx.stroke();
+    y += rowH;
+  });
+  downloadCanvas(canvas, `DAYPLAYER_SignIn_${day.date}.png`);
+}
+function downloadCanvas(canvas, filename){
+  canvas.toBlob(blob=>{
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  });
+}
+function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
+
+renderSignin(); renderSigninHistory();
+
+/* ============================================================
+   TAB 2: CREW ROSTER
+   ============================================================ */
+let crewData = store.get('dp_crew', []);
+let crewSortPref = store.get('dp_crew_sort', 'name');
+let editingCrewId = null;
+
+document.getElementById('crewSort').value = crewSortPref;
+document.getElementById('crewSort').addEventListener('change', (e)=>{
+  crewSortPref = e.target.value;
+  store.set('dp_crew_sort', crewSortPref);
+  renderCrew();
+});
+
+document.getElementById('addCrewMemberBtn').addEventListener('click', async ()=>{
+  const name = document.getElementById('crewName').value.trim();
+  const position = document.getElementById('crewPosition').value.trim();
+  const phone = document.getElementById('crewPhone').value.trim();
+  const email = document.getElementById('crewEmail').value.trim();
+  const dealFile = document.getElementById('crewDealMemo').files[0];
+  const taxFile = document.getElementById('crewTaxDoc').files[0];
+  if(!name){ alert('Enter a name before adding to the roster.'); return; }
+
+  if(editingCrewId){
+    // Editing an existing crew member
+    const rec = crewData.find(c=>c.id===editingCrewId);
+    if(rec){
+      rec.name = name; rec.position = position; rec.phone = phone; rec.email = email;
+      if(dealFile){
+        if(rec.dealMemoKey) await dbDelete(rec.dealMemoKey);
+        rec.dealMemoKey = 'crew_deal_'+rec.id;
+        rec.dealMemoName = dealFile.name;
+        rec.dealMemoType = dealFile.type;
+        await dbPut(rec.dealMemoKey, await dealFile.arrayBuffer());
+      }
+      if(taxFile){
+        if(rec.taxDocKey) await dbDelete(rec.taxDocKey);
+        rec.taxDocKey = 'crew_tax_'+rec.id;
+        rec.taxDocName = taxFile.name;
+        rec.taxDocType = taxFile.type;
+        await dbPut(rec.taxDocKey, await taxFile.arrayBuffer());
+      }
+      store.set('dp_crew', crewData);
+    }
+    exitCrewEditMode();
+  } else {
+    const rec = { id: uid(), name, position, phone, email,
+      dealMemoKey:null, dealMemoName:null, dealMemoType:null,
+      taxDocKey:null, taxDocName:null, taxDocType:null,
+      added: new Date().toISOString() };
+
+    if(dealFile){
+      rec.dealMemoKey = 'crew_deal_'+rec.id;
+      rec.dealMemoName = dealFile.name;
+      rec.dealMemoType = dealFile.type;
+      await dbPut(rec.dealMemoKey, await dealFile.arrayBuffer());
+    }
+    if(taxFile){
+      rec.taxDocKey = 'crew_tax_'+rec.id;
+      rec.taxDocName = taxFile.name;
+      rec.taxDocType = taxFile.type;
+      await dbPut(rec.taxDocKey, await taxFile.arrayBuffer());
+    }
+    crewData.unshift(rec);
+    store.set('dp_crew', crewData);
+    clearCrewForm();
+  }
+  renderCrew();
+});
+
+function clearCrewForm(){
+  document.getElementById('crewName').value='';
+  document.getElementById('crewPosition').value='';
+  document.getElementById('crewPhone').value='';
+  document.getElementById('crewEmail').value='';
+  document.getElementById('crewDealMemo').value='';
+  document.getElementById('crewTaxDoc').value='';
+  document.getElementById('crewDealMemoExisting').textContent='';
+  document.getElementById('crewTaxDocExisting').textContent='';
+}
+
+function enterCrewEditMode(rec){
+  editingCrewId = rec.id;
+  document.getElementById('crewFormTitle').textContent = `Edit Crew Member — ${rec.name}`;
+  document.getElementById('crewName').value = rec.name || '';
+  document.getElementById('crewPosition').value = rec.position || '';
+  document.getElementById('crewPhone').value = rec.phone || '';
+  document.getElementById('crewEmail').value = rec.email || '';
+  document.getElementById('crewDealMemo').value='';
+  document.getElementById('crewTaxDoc').value='';
+  document.getElementById('crewDealMemoExisting').textContent = rec.dealMemoName ? `Currently on file: ${rec.dealMemoName} (choose a file above to replace)` : '';
+  document.getElementById('crewTaxDocExisting').textContent = rec.taxDocName ? `Currently on file: ${rec.taxDocName} (choose a file above to replace)` : '';
+  document.getElementById('addCrewMemberBtn').textContent = 'Save Changes';
+  document.getElementById('cancelCrewEditBtn').classList.remove('hidden');
+  document.getElementById('tab-crew').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function exitCrewEditMode(){
+  editingCrewId = null;
+  document.getElementById('crewFormTitle').textContent = 'Add Crew Member';
+  document.getElementById('addCrewMemberBtn').textContent = '+ Add to Roster';
+  document.getElementById('cancelCrewEditBtn').classList.add('hidden');
+  clearCrewForm();
+}
+document.getElementById('cancelCrewEditBtn').addEventListener('click', exitCrewEditMode);
+
+function sortedCrew(){
+  const arr = crewData.slice();
+  switch(crewSortPref){
+    case 'position': arr.sort((a,b)=> (a.position||'').localeCompare(b.position||'') || a.name.localeCompare(b.name)); break;
+    case 'newest': arr.sort((a,b)=> new Date(b.added) - new Date(a.added)); break;
+    case 'oldest': arr.sort((a,b)=> new Date(a.added) - new Date(b.added)); break;
+    default: arr.sort((a,b)=> a.name.localeCompare(b.name));
+  }
+  return arr;
+}
+
+function renderCrew(){
+  document.getElementById('crewCount').textContent = crewData.length ? `${crewData.length} on roster` : '';
+  const wrap = document.getElementById('crewList');
+  if(!crewData.length){ wrap.innerHTML = '<div class="empty">No crew members added yet.</div>'; updateCrewDatalist(); return; }
+  wrap.innerHTML='';
+  sortedCrew().forEach(rec=>{
+    const div = document.createElement('div'); div.className='file-item';
+    div.style.alignItems='flex-start';
+    const attachBits = [];
+    if(rec.phone) attachBits.push(escapeHtml(rec.phone));
+    if(rec.email) attachBits.push(escapeHtml(rec.email));
+    if(rec.dealMemoName) attachBits.push('Deal Memo ✓');
+    if(rec.taxDocName) attachBits.push('Tax Doc ✓');
+    div.innerHTML = `<div class="ic">🎬</div>
+      <div class="meta">
+        <div class="nm">${escapeHtml(rec.name)}${rec.position?' · '+escapeHtml(rec.position):''}</div>
+        <div class="sub">${attachBits.length? attachBits.join(' · ') : 'No attachments yet'}</div>
+      </div>`;
+    const actions = document.createElement('div');
+    actions.style.display='flex'; actions.style.flexDirection='column'; actions.style.gap='4px'; actions.style.alignItems='flex-end';
+    const editBtn = document.createElement('a'); editBtn.href='#'; editBtn.textContent='Edit';
+    editBtn.addEventListener('click', (e)=>{ e.preventDefault(); enterCrewEditMode(rec); });
+    actions.appendChild(editBtn);
+    if(rec.dealMemoKey){
+      const a = document.createElement('a'); a.href='#'; a.textContent='Deal Memo';
+      a.addEventListener('click', async (e)=>{ e.preventDefault(); const buf = await dbGet(rec.dealMemoKey); downloadBuffer(buf, rec.dealMemoName, rec.dealMemoType); });
+      actions.appendChild(a);
+    }
+    if(rec.taxDocKey){
+      const a = document.createElement('a'); a.href='#'; a.textContent='Tax Doc';
+      a.addEventListener('click', async (e)=>{ e.preventDefault(); const buf = await dbGet(rec.taxDocKey); downloadBuffer(buf, rec.taxDocName, rec.taxDocType); });
+      actions.appendChild(a);
+    }
+    const del = document.createElement('button'); del.className='del-btn'; del.textContent='✕ Remove';
+    del.style.fontSize='11px';
+    del.addEventListener('click', async ()=>{
+      if(!confirm(`Remove ${rec.name} from the roster? This also deletes their stored attachments.`)) return;
+      if(rec.dealMemoKey) await dbDelete(rec.dealMemoKey);
+      if(rec.taxDocKey) await dbDelete(rec.taxDocKey);
+      crewData = crewData.filter(c=>c.id!==rec.id);
+      store.set('dp_crew', crewData);
+      if(editingCrewId === rec.id) exitCrewEditMode();
+      renderCrew();
+    });
+    actions.appendChild(del);
+    div.appendChild(actions);
+    wrap.appendChild(div);
+  });
+  updateCrewDatalist();
+}
+
+function updateCrewDatalist(){
+  let dl = document.getElementById('crewNameOptions');
+  if(!dl){
+    dl = document.createElement('datalist');
+    dl.id = 'crewNameOptions';
+    document.body.appendChild(dl);
+  }
+  dl.innerHTML = crewData.map(c=>`<option value="${escapeAttr(c.name)}">`).join('');
+}
+
+renderCrew();
+
+document.getElementById('exportCrewBtn').addEventListener('click', exportCrewCsv);
+
+function exportCrewCsv(){
+  if(!crewData.length){ alert('No crew members on the roster yet.'); return; }
+  const headers = ['Name','Position','Phone','Email','Deal Memo on File','Deal Memo Filename','Tax Doc on File','Tax Doc Filename','Date Added'];
+  const lines = [headers.map(csvSafe).join(',')];
+  sortedCrew().forEach(rec=>{
+    lines.push([
+      csvSafe(rec.name),
+      csvSafe(rec.position),
+      csvSafe(rec.phone || ''),
+      csvSafe(rec.email || ''),
+      rec.dealMemoName ? 'Yes' : 'No',
+      csvSafe(rec.dealMemoName || ''),
+      rec.taxDocName ? 'Yes' : 'No',
+      csvSafe(rec.taxDocName || ''),
+      csvSafe(rec.added ? new Date(rec.added).toLocaleDateString('en-US') : '')
+    ].join(','));
+  });
+  const csv = lines.join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download = `DAYPLAYER_Crew_Roster_${todayStr()}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+
+/* ============================================================
+   TAB 3: SCHEDULE
+   ============================================================ */
+let scheduleData = store.get('dp_schedule_current', { date: todayStr(), scenes: [] });
+let currentPdfMeta = store.get('dp_schedule_pdf_meta', null); // {key, name}
+let pdfDoc=null, pdfPage=1, pdfPageCount=1;
+
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+document.getElementById('scheduleDate').textContent = '';
+function renderScheduleHeader(){ document.getElementById('scheduleDate').textContent = fmtDateLong(scheduleData.date); }
+renderScheduleHeader();
+
+document.getElementById('pdfUpload').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const buf = await file.arrayBuffer();
+  await dbPut('schedule_pdf_current', buf);
+  currentPdfMeta = { name: file.name };
+  store.set('dp_schedule_pdf_meta', currentPdfMeta);
+  loadPdfFromBuffer(buf.slice(0));
+});
+async function loadPdfFromBuffer(buf){
+  pdfDoc = await pdfjsLib.getDocument({data:buf}).promise;
+  pdfPageCount = pdfDoc.numPages; pdfPage = 1;
+  document.getElementById('pdfViewerWrap').classList.remove('hidden');
+  renderPdfPage();
+}
+async function renderPdfPage(){
+  const page = await pdfDoc.getPage(pdfPage);
+  const scale = 1.4;
+  const viewport = page.getViewport({scale});
+  const canvas = document.getElementById('pdfCanvas');
+  canvas.width = viewport.width; canvas.height = viewport.height;
+  await page.render({canvasContext: canvas.getContext('2d'), viewport}).promise;
+  document.getElementById('pdfPageLabel').textContent = `Page ${pdfPage} of ${pdfPageCount} — ${currentPdfMeta?currentPdfMeta.name:''}`;
+}
+document.getElementById('pdfPrev').addEventListener('click', ()=>{ if(pdfPage>1){pdfPage--; renderPdfPage();} });
+document.getElementById('pdfNext').addEventListener('click', ()=>{ if(pdfPage<pdfPageCount){pdfPage++; renderPdfPage();} });
+
+// reload pdf on startup if one was saved
+(async ()=>{
+  if(currentPdfMeta){
+    const buf = await dbGet('schedule_pdf_current');
+    if(buf) loadPdfFromBuffer(buf.slice(0));
+  }
+})();
+
+function renderScenes(){
+  const body = document.getElementById('sceneBody');
+  body.innerHTML='';
+  if(!scheduleData.scenes.length){
+    body.innerHTML = `<tr><td colspan="6"><div class="empty">No scenes added. Use the fields above to log scenes from today's sides.</div></td></tr>`;
+    return;
+  }
+  scheduleData.scenes.forEach(sc=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(sc.num)}</td>
+      <td>${escapeHtml(sc.desc)}</td>
+      <td>${escapeHtml(sc.pages||'')}</td>
+      <td><span class="scene-status ${sc.shot?'shot':'pending'}">${sc.shot?'Shot':'Pending'}</span></td>
+      <td>${sc.shotTime||'—'}</td>
+      <td>
+        <button class="btn ghost toggle-btn" style="padding:5px 8px;font-size:11px;">${sc.shot?'Undo':'Mark Shot'}</button>
+        <button class="del-btn">✕</button>
+      </td>`;
+    tr.querySelector('.toggle-btn').addEventListener('click', ()=>{
+      sc.shot = !sc.shot;
+      sc.shotTime = sc.shot ? new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) : null;
+      saveSchedule(); renderScenes();
+    });
+    tr.querySelector('.del-btn').addEventListener('click', ()=>{
+      scheduleData.scenes = scheduleData.scenes.filter(s=>s.id!==sc.id);
+      saveSchedule(); renderScenes();
+    });
+    body.appendChild(tr);
+  });
+}
+function saveSchedule(){ store.set('dp_schedule_current', scheduleData); }
+document.getElementById('addSceneBtn').addEventListener('click', ()=>{
+  const num = document.getElementById('sceneNum').value.trim();
+  const desc = document.getElementById('sceneDesc').value.trim();
+  const pages = document.getElementById('scenePages').value.trim();
+  if(!num && !desc) return;
+  scheduleData.scenes.push({id:uid(), num, desc, pages, shot:false, shotTime:null});
+  document.getElementById('sceneNum').value='';
+  document.getElementById('sceneDesc').value='';
+  document.getElementById('scenePages').value='';
+  saveSchedule(); renderScenes();
+});
+document.getElementById('newScheduleDayBtn').addEventListener('click', ()=>{
+  if(scheduleData.scenes.length && !confirm("Archive today's schedule and start a new blank day?")) return;
+  if(scheduleData.scenes.length){
+    const history = store.get('dp_schedule_history', []);
+    history.unshift({date: scheduleData.date, scenes: scheduleData.scenes});
+    store.set('dp_schedule_history', history.slice(0,200));
+  }
+  scheduleData = { date: todayStr(), scenes: [] };
+  saveSchedule(); renderScheduleHeader(); renderScenes();
+});
+document.getElementById('exportScheduleBtn').addEventListener('click', ()=>exportScheduleChart(scheduleData));
+
+function exportScheduleChart(day){
+  const scenes = day.scenes;
+  const colW = [90, 320, 110, 110, 110];
+  const headers = ['SCENE','DESCRIPTION','PAGES','STATUS','TIME SHOT'];
+  const rowH=36, headH=46, padX=24, padTop=86, padBottom=24;
+  const width = colW.reduce((a,b)=>a+b,0)+padX*2;
+  const height = padTop+headH+Math.max(scenes.length,1)*rowH+padBottom;
+  const canvas = document.createElement('canvas');
+  canvas.width=width*2; canvas.height=height*2;
+  const ctx = canvas.getContext('2d'); ctx.scale(2,2);
+  ctx.fillStyle='#0c0e10'; ctx.fillRect(0,0,width,height);
+  ctx.fillStyle='#e0a458'; ctx.font='600 20px Oswald, sans-serif';
+  ctx.fillText('DAYPLAYER · SCENE SCHEDULE', padX, 36);
+  ctx.fillStyle='#9a9690'; ctx.font='13px IBM Plex Mono, monospace';
+  ctx.fillText(fmtDateLong(day.date).toUpperCase(), padX, 58);
+  const shotCount = scenes.filter(s=>s.shot).length;
+  ctx.fillStyle='#3f9d96'; ctx.fillText(`${shotCount} / ${scenes.length} SCENES SHOT`, padX, 76);
+  let x=padX, y=padTop;
+  ctx.font='600 12px Oswald, sans-serif';
+  headers.forEach((h,i)=>{ ctx.fillStyle='#3f9d96'; ctx.fillText(h,x+8,y+headH-16); x+=colW[i]; });
+  ctx.strokeStyle='#2a2f35'; ctx.beginPath(); ctx.moveTo(padX,y+headH-8); ctx.lineTo(width-padX,y+headH-8); ctx.stroke();
+  y+=headH;
+  ctx.font='13px IBM Plex Mono, monospace';
+  if(!scenes.length){ ctx.fillStyle='#9a9690'; ctx.fillText('No scenes logged.', padX+8, y+rowH-12); }
+  scenes.forEach((sc,i)=>{
+    if(i%2===1){ ctx.fillStyle='#15181c'; ctx.fillRect(padX-8,y,width-padX*2+16,rowH); }
+    x=padX;
+    const vals=[sc.num||'—', truncate(sc.desc||'—',40), sc.pages||'—', sc.shot?'SHOT':'PENDING', sc.shotTime||'—'];
+    vals.forEach((v,vi)=>{
+      ctx.fillStyle = vi===3 ? (sc.shot?'#3f9d96':'#9a9690') : '#e8e4da';
+      ctx.fillText(v, x+8, y+rowH-12);
+      x+=colW[vi];
+    });
+    ctx.strokeStyle='#1f2329'; ctx.beginPath(); ctx.moveTo(padX,y+rowH); ctx.lineTo(width-padX,y+rowH); ctx.stroke();
+    y+=rowH;
+  });
+  downloadCanvas(canvas, `DAYPLAYER_Schedule_${day.date}.png`);
+}
+function truncate(s,n){ return s.length>n? s.slice(0,n-1)+'…' : s; }
+function escapeHtml(s){ return (s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+renderScenes();
+
+/* ============================================================
+   TAB 3: REPORTS
+   ============================================================ */
+async function handleReportUpload(inputEl, storeKey, listElId){
+  inputEl.addEventListener('change', async (e)=>{
+    const files = Array.from(e.target.files);
+    const records = store.get(storeKey, []);
+    for(const file of files){
+      const key = 'report_'+uid();
+      const buf = await file.arrayBuffer();
+      await dbPut(key, buf);
+      records.unshift({ id:key, name:file.name, type:file.type, size:file.size, date: todayStr(), uploaded: new Date().toISOString() });
+    }
+    store.set(storeKey, records);
+    renderReportList(storeKey, listElId);
+    inputEl.value='';
+  });
+}
+function renderReportList(storeKey, listElId){
+  const records = store.get(storeKey, []);
+  const wrap = document.getElementById(listElId);
+  if(!records.length){ wrap.innerHTML = '<div class="empty">No files uploaded yet.</div>'; return; }
+  wrap.innerHTML='';
+  records.forEach(rec=>{
+    const div = document.createElement('div'); div.className='file-item';
+    div.innerHTML = `<div class="ic">${iconFor(rec.type)}</div>
+      <div class="meta"><div class="nm">${escapeHtml(rec.name)}</div><div class="sub">${fmtDateLong(rec.date)} · ${formatBytes(rec.size)}</div></div>`;
+    const dl = document.createElement('a'); dl.href='#'; dl.textContent='Download';
+    dl.addEventListener('click', async (e)=>{ e.preventDefault(); const buf = await dbGet(rec.id); downloadBuffer(buf, rec.name, rec.type); });
+    const del = document.createElement('button'); del.className='del-btn'; del.textContent='✕';
+    del.addEventListener('click', async ()=>{
+      await dbDelete(rec.id);
+      const updated = store.get(storeKey, []).filter(r=>r.id!==rec.id);
+      store.set(storeKey, updated);
+      renderReportList(storeKey, listElId);
+    });
+    div.appendChild(dl); div.appendChild(del);
+    wrap.appendChild(div);
+  });
+}
+function iconFor(type){
+  if(type && type.includes('pdf')) return '📄';
+  if(type && type.includes('image')) return '🖼️';
+  return '📁';
+}
+function formatBytes(b){
+  if(b<1024) return b+' B';
+  if(b<1024*1024) return (b/1024).toFixed(1)+' KB';
+  return (b/(1024*1024)).toFixed(1)+' MB';
+}
+function downloadBuffer(buf, filename, type){
+  const blob = new Blob([buf], {type: type||'application/octet-stream'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+
+handleReportUpload(document.getElementById('acFileInput'), 'dp_ac_reports', 'acFileList');
+handleReportUpload(document.getElementById('ssFileInput'), 'dp_ss_reports', 'ssFileList');
+renderReportList('dp_ac_reports','acFileList');
+renderReportList('dp_ss_reports','ssFileList');
+
+/* ============================================================
+   TAB 4: PURCHASES
+   ============================================================ */
+document.getElementById('purchaseDate').textContent = fmtDateLong(todayStr());
+
+document.getElementById('addReceiptBtn').addEventListener('click', async ()=>{
+  const vendor = document.getElementById('purchVendor').value.trim();
+  const amount = document.getElementById('purchAmount').value.trim();
+  const note = document.getElementById('purchNote').value.trim();
+  const fileInput = document.getElementById('receiptFileInput');
+  const file = fileInput.files[0];
+  if(!vendor && !amount && !file){ return; }
+  const records = store.get('dp_purchases', []);
+  const rec = { id: uid(), date: todayStr(), vendor: vendor||'(no vendor)', amount: amount||'', note,
+                fileKey:null, fileName:null, fileType:null };
+  if(file){
+    const buf = await file.arrayBuffer();
+    rec.fileKey = 'receipt_'+rec.id;
+    rec.fileName = file.name;
+    rec.fileType = file.type;
+    await dbPut(rec.fileKey, buf);
+  }
+  records.unshift(rec);
+  store.set('dp_purchases', records);
+  document.getElementById('purchVendor').value='';
+  document.getElementById('purchAmount').value='';
+  document.getElementById('purchNote').value='';
+  fileInput.value='';
+  renderPurchases();
+});
+
+function renderPurchases(){
+  const records = store.get('dp_purchases', []);
+  const wrap = document.getElementById('purchaseGroups');
+  if(!records.length){ wrap.innerHTML = '<div class="empty">No purchases logged yet.</div>'; return; }
+  const groups = {};
+  records.forEach(r=>{ (groups[r.date] = groups[r.date]||[]).push(r); });
+  const dates = Object.keys(groups).sort().reverse();
+  wrap.innerHTML='';
+  dates.forEach(date=>{
+    const label = document.createElement('div'); label.className='day-group';
+    const total = groups[date].reduce((sum,r)=>sum + (parseFloat(r.amount)||0), 0);
+    label.innerHTML = `<div class="day-label">${fmtDateLong(date)} · $${total.toFixed(2)}</div>`;
+    const list = document.createElement('div'); list.className='file-list';
+    groups[date].forEach(rec=>{
+      const div = document.createElement('div'); div.className='file-item';
+      div.innerHTML = `<div class="ic">${rec.fileType?iconFor(rec.fileType):'🧾'}</div>
+        <div class="meta"><div class="nm">${escapeHtml(rec.vendor)} ${rec.amount?'· $'+escapeHtml(rec.amount):''}</div>
+        <div class="sub">${escapeHtml(rec.note||'')}${rec.fileName? ' · '+escapeHtml(rec.fileName):''}</div></div>`;
+      if(rec.fileKey){
+        const dl = document.createElement('a'); dl.href='#'; dl.textContent='View';
+        dl.addEventListener('click', async (e)=>{ e.preventDefault(); const buf = await dbGet(rec.fileKey); downloadBuffer(buf, rec.fileName, rec.fileType); });
+        div.appendChild(dl);
+      }
+      const del = document.createElement('button'); del.className='del-btn'; del.textContent='✕';
+      del.addEventListener('click', async ()=>{
+        if(rec.fileKey) await dbDelete(rec.fileKey);
+        const updated = store.get('dp_purchases', []).filter(r=>r.id!==rec.id);
+        store.set('dp_purchases', updated);
+        renderPurchases();
+      });
+      div.appendChild(del);
+      list.appendChild(div);
+    });
+    label.appendChild(list);
+    wrap.appendChild(label);
+  });
+}
+renderPurchases();
+
+document.getElementById('exportReceiptsZipBtn').addEventListener('click', async ()=>{
+  const records = store.get('dp_purchases', []);
+  if(!records.length){ alert('No purchases to export yet.'); return; }
+  const zip = new JSZip();
+  const groups = {};
+  records.forEach(r=>{ (groups[r.date] = groups[r.date]||[]).push(r); });
+  for(const date of Object.keys(groups)){
+    const folder = zip.folder(date);
+    const lines = ['Date,Vendor,Amount,Note,Receipt File'];
+    for(const rec of groups[date]){
+      lines.push([date, csvSafe(rec.vendor), rec.amount, csvSafe(rec.note), rec.fileName||''].join(','));
+      if(rec.fileKey){
+        const buf = await dbGet(rec.fileKey);
+        if(buf) folder.file(rec.fileName || (rec.id+'.bin'), buf);
+      }
+    }
+    folder.file('summary.csv', lines.join('\\n'));
+  }
+  const blob = await zip.generateAsync({type:'blob'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=`DAYPLAYER_Receipts_${todayStr()}.zip`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+});
+function csvSafe(s){ return '"'+(s||'').replace(/"/g,'""')+'"'; }
+
+/* ============================================================
+   SERVICE WORKER REGISTRATION
+   ============================================================ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
